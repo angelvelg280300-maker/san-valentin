@@ -6,7 +6,10 @@
   <title>Para ti ❤️</title>
   <style>
     :root{
-      --bg:#f6f0e7; --card:#fff8ef; --text:#2a2a2a; --muted:#5a5a5a;
+      --bg:#f6f0e7;
+      --card:#fff8ef;
+      --text:#2a2a2a;
+      --muted:#5a5a5a;
     }
     *{box-sizing:border-box}
     body{
@@ -14,23 +17,86 @@
       background: linear-gradient(180deg, #2b0036, #130018);
       font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
     }
-    .frame{width:min(980px,96vw); border-radius:26px; padding:16px;
-      background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); backdrop-filter:blur(10px);}
-    .card{background:var(--card); border-radius:22px; overflow:hidden; box-shadow:0 24px 80px rgba(0,0,0,.35);}
-    .content{display:grid; grid-template-columns:1.1fr 1fr; min-height:520px;}
-    .left{padding:32px 26px 18px; color:var(--text);}
-    .left h1{font-size:18px; font-weight:700; margin:0 0 18px;}
-    .poem{font-size:22px; line-height:1.35; margin:0 0 16px; white-space:pre-line;}
-    .sig{margin-top:10px; font-size:20px; font-weight:650;}
-    .divider{height:1px; background:rgba(0,0,0,.2); margin:16px 0 14px;}
-    .timerLabel{font-size:18px; color:var(--muted); margin:0 0 6px;}
-    .timer{font-size:34px; font-weight:800; letter-spacing:.3px;}
-    .timer small{font-size:16px; font-weight:650; color:var(--muted);}
-    .right{background:var(--bg); display:grid; place-items:center; padding:12px;}
-    canvas{width:100%; max-width:420px; height:100%; max-height:520px; aspect-ratio:4/5;
-      border-radius:18px; background:linear-gradient(180deg,#f7f0e7,#f2e7db); border:1px solid rgba(0,0,0,.12);}
-    .bottomBar{height:6px; background:rgba(0,0,0,.08);}
-    @media (max-width:860px){ .content{grid-template-columns:1fr;} .poem{font-size:20px;} .timer{font-size:30px;} }
+    .frame{
+      width:min(980px,96vw); border-radius:26px; padding:16px;
+      background:rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.12);
+      backdrop-filter:blur(10px);
+    }
+    .card{
+      background:var(--card);
+      border-radius:22px;
+      overflow:hidden;
+      box-shadow:0 24px 80px rgba(0,0,0,.35);
+    }
+    .content{
+      display:grid;
+      grid-template-columns:1.1fr 1fr;
+      min-height:520px;
+    }
+    .left{
+      padding:32px 26px 18px;
+      color:var(--text);
+    }
+    .left h1{
+      font-size:18px;
+      font-weight:700;
+      margin:0 0 18px;
+    }
+    .poem{
+      font-size:22px;
+      line-height:1.35;
+      margin:0 0 16px;
+      white-space:pre-line;
+    }
+    .sig{
+      margin-top:10px;
+      font-size:20px;
+      font-weight:650;
+    }
+    .divider{
+      height:1px;
+      background:rgba(0,0,0,.2);
+      margin:16px 0 14px;
+    }
+    .timerLabel{
+      font-size:18px;
+      color:var(--muted);
+      margin:0 0 6px;
+    }
+    .timer{
+      font-size:34px;
+      font-weight:800;
+      letter-spacing:.3px;
+    }
+    .timer small{
+      font-size:16px;
+      font-weight:650;
+      color:var(--muted);
+      margin-right:6px;
+    }
+    .right{
+      background:var(--bg);
+      display:grid;
+      place-items:center;
+      padding:12px;
+    }
+    canvas{
+      width:100%;
+      max-width:420px;
+      height:100%;
+      max-height:520px;
+      aspect-ratio:4/5;
+      border-radius:18px;
+      background:linear-gradient(180deg,#f7f0e7,#f2e7db);
+      border:1px solid rgba(0,0,0,.12);
+    }
+    .bottomBar{ height:6px; background:rgba(0,0,0,.08); }
+    @media (max-width:860px){
+      .content{grid-template-columns:1fr;}
+      .poem{font-size:20px;}
+      .timer{font-size:30px;}
+    }
   </style>
 </head>
 <body>
@@ -38,14 +104,18 @@
     <div class="card">
       <div class="content">
         <div class="left">
-          <h1 id="title">Para el amor de mi vida:Metztli Rebeca Guadarrama Reyes</h1>
+          <h1 id="title">Para el amor de mi vida:</h1>
+
           <div class="poem" id="poem">Si pudiera elegir un lugar
 seguro, sería a tu lado.
 
 Cuanto más tiempo estoy
 contigo más te amo.</div>
-          <div class="sig" id="sig">— Te amo mucho ❤️</div>
+
+          <div class="sig" id="sig">— Te amo ❤️</div>
+
           <div class="divider"></div>
+
           <div class="timerLabel">Mi amor por ti comenzó hace…</div>
           <div class="timer">
             <span id="days">0</span> <small>días</small>
@@ -54,25 +124,55 @@ contigo más te amo.</div>
             <span id="secs">00</span> <small>seg</small>
           </div>
         </div>
-        <div class="right"><canvas id="c"></canvas></div>
+
+        <div class="right">
+          <canvas id="c"></canvas>
+        </div>
       </div>
       <div class="bottomBar"></div>
     </div>
   </div>
 
 <script>
-  // ===== PERSONALIZA AQUÍ =====
+  // =========================
+  // CONFIG (TUS DATOS)
+  // =========================
   const CONFIG = {
-    inicioAmor: "2025-08-14T00:00:00", // cambia la fecha real
-    growMs: 3500,
-    leafDelayMs: 500,
-    leafAppearMs: 900,
+    nombrePareja: "Metztli Rebeca Guadarrama Reyes",
+
+    // 11/08/2024 = 11 de agosto de 2024 (dd/mm/yyyy)
+    // IMPORTANTE: lo construimos con Date(año, mes-1, día) para que NO se confunda.
+    inicio: { y: 2024, m: 8, d: 11, hh: 0, mm: 0, ss: 0 },
+
+    // Árbol y animación
+    growMs: 3200,        // crecimiento de ramas
+    leafDelayMs: 200,    // pausa antes de corazones
+    leafAppearMs: 900,   // pop de corazones
     maxDepth: 7,
-    baseLength: 95,
+    baseLength: 98,
+
+    // Copa de corazones (lo importante)
+    canopyHearts: 420,   // cantidad de corazones de la copa
+    canopySpread: 0.58,  // tamaño general de la copa (0.45-0.70)
   };
 
-  // ===== CONTADOR =====
-  const startDate = new Date(CONFIG.inicioAmor);
+  // Forzar textos
+  document.getElementById("title").textContent =
+    `Para el amor de mi vida, ${CONFIG.nombrePareja}:`;
+  document.getElementById("sig").textContent = "— Te amo ❤️";
+
+  // =========================
+  // CONTADOR (desde 11/08/2024 hasta hoy)
+  // =========================
+  const startDate = new Date(
+    CONFIG.inicio.y,
+    CONFIG.inicio.m - 1,  // mes 0-based
+    CONFIG.inicio.d,
+    CONFIG.inicio.hh,
+    CONFIG.inicio.mm,
+    CONFIG.inicio.ss
+  );
+
   const elDays = document.getElementById("days");
   const elHours = document.getElementById("hours");
   const elMins = document.getElementById("mins");
@@ -80,21 +180,25 @@ contigo más te amo.</div>
 
   function tickTimer(){
     const now = new Date();
-    let diff = Math.max(0, now - startDate);
-    const sec = Math.floor(diff / 1000);
-    const days = Math.floor(sec / 86400);
-    const hours = Math.floor((sec % 86400) / 3600);
-    const mins = Math.floor((sec % 3600) / 60);
-    const secs = sec % 60;
-    elDays.textContent = days.toString();
+    let diffMs = Math.max(0, now - startDate);
+
+    const totalSec = Math.floor(diffMs / 1000);
+    const days = Math.floor(totalSec / 86400);
+    const hours = Math.floor((totalSec % 86400) / 3600);
+    const mins  = Math.floor((totalSec % 3600) / 60);
+    const secs  = totalSec % 60;
+
+    elDays.textContent = String(days);
     elHours.textContent = String(hours).padStart(2,"0");
-    elMins.textContent = String(mins).padStart(2,"0");
-    elSecs.textContent = String(secs).padStart(2,"0");
+    elMins.textContent  = String(mins).padStart(2,"0");
+    elSecs.textContent  = String(secs).padStart(2,"0");
   }
   tickTimer();
   setInterval(tickTimer, 1000);
 
-  // ===== CANVAS ÁRBOL =====
+  // =========================
+  // CANVAS
+  // =========================
   const canvas = document.getElementById("c");
   const ctx = canvas.getContext("2d");
 
@@ -102,11 +206,11 @@ contigo más te amo.</div>
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     const cssW = canvas.getBoundingClientRect().width;
     const cssH = canvas.getBoundingClientRect().height;
-    canvas.width = Math.floor(cssW * dpr);
+    canvas.width  = Math.floor(cssW * dpr);
     canvas.height = Math.floor(cssH * dpr);
     ctx.setTransform(dpr,0,0,dpr,0,0);
   }
-  window.addEventListener("resize", resize);
+  window.addEventListener("resize", () => { resize(); buildAll(); });
   resize();
 
   function clamp(x,a,b){ return Math.max(a, Math.min(b,x)); }
@@ -116,24 +220,46 @@ contigo más te amo.</div>
     return 1 + c3*Math.pow(t-1,3) + c1*Math.pow(t-1,2);
   }
 
-  // RNG simple
-  let seed = 1234567;
-  function rand(){ seed = (seed*1664525 + 1013904223) >>> 0; return seed / 4294967296; }
+  // RNG estable
+  function xfnv1a(str){
+    let h = 2166136261 >>> 0;
+    for (let i=0;i<str.length;i++){
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
+  function mulberry32(a){
+    return function(){
+      let t = a += 0x6D2B79F5;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  const rand = mulberry32(xfnv1a(`${CONFIG.nombrePareja}|${CONFIG.inicio.y}-${CONFIG.inicio.m}-${CONFIG.inicio.d}`));
 
+  // =========================
+  // Árbol (ramas) + Copa (corazones)
+  // =========================
   const segments = [];
-  const leaves = [];
+  const tipLeaves = [];   // puntas reales de ramas
+  const canopy = [];      // MUCHOS corazones (copa en forma de corazón)
 
   function addBranch(x1,y1, angle, length, thickness, depth){
     const x2 = x1 + Math.cos(angle) * length;
     const y2 = y1 + Math.sin(angle) * length;
+
     segments.push({x1,y1,x2,y2, thickness, rs:0, re:0});
+
     if (depth >= CONFIG.maxDepth || length < 14){
-      leaves.push({x:x2, y:y2, appear:0});
+      tipLeaves.push({x:x2, y:y2, appear:0});
       return;
     }
+
     const branches = (rand() < 0.25) ? 3 : 2;
     for (let i=0;i<branches;i++){
-      const spread = (branches===3) ? (i-1) : (i===0?-1:1);
+      const spread = (branches===3) ? (i-1) : (i===0 ? -1 : 1);
       const a2 = angle + spread*(0.45 + rand()*0.22) + (rand()*0.35 - 0.175);
       const l2 = length * (0.72 + rand()*0.12);
       const th2 = thickness * (0.72 + rand()*0.10);
@@ -141,50 +267,116 @@ contigo más te amo.</div>
     }
   }
 
-  function buildTree(){
+  function heartMask(u, v){
+    // ecuación de corazón (u,v) ~ [-1.2, 1.2]
+    // (x^2 + y^2 - 1)^3 - x^2 y^3 <= 0
+    const x = u;
+    const y = v;
+    const a = (x*x + y*y - 1);
+    return (a*a*a - x*x*y*y*y) <= 0;
+  }
+
+  function buildAll(){
     segments.length = 0;
-    leaves.length = 0;
+    tipLeaves.length = 0;
+    canopy.length = 0;
+
     const W = canvas.getBoundingClientRect().width;
     const H = canvas.getBoundingClientRect().height;
-    const rootX = W * 0.62, rootY = H * 0.96;
+
+    // base del tronco
+    const rootX = W * 0.60;
+    const rootY = H * 0.95;
+
     addBranch(rootX, rootY, -Math.PI/2, CONFIG.baseLength, 12, 0);
 
+    // tiempos de crecimiento
     const total = segments.length;
     for (let i=0;i<total;i++){
       const start = (i / total) * CONFIG.growMs;
       segments[i].rs = start;
-      segments[i].re = start + (520 + rand()*260);
+      segments[i].re = start + (460 + rand()*260);
     }
+
+    // aparición de puntas (poquitas)
     const leafStart = CONFIG.growMs + CONFIG.leafDelayMs;
-    for (let i=0;i<leaves.length;i++){
-      leaves[i].appear = leafStart + i*(10 + rand()*14);
+    for (let i=0;i<tipLeaves.length;i++){
+      tipLeaves[i].appear = leafStart + i*(10 + rand()*10);
+      tipLeaves[i].size = 3.8 + rand()*2.2;
+      tipLeaves[i].rot = (rand()*Math.PI*2);
+      tipLeaves[i].hue = Math.floor((rand()*22)-11);
+    }
+
+    // centro de copa basado en puntas
+    let cx = 0, cy = 0;
+    for (const p of tipLeaves){ cx += p.x; cy += p.y; }
+    cx /= Math.max(1, tipLeaves.length);
+    cy /= Math.max(1, tipLeaves.length);
+
+    // subir un poco el centro para formar corazón
+    cy -= H * 0.06;
+
+    // radio “visual” de copa
+    const R = Math.min(W, H) * (0.48 + rand()*0.06);
+
+    // generar MUCHOS corazones dentro de una máscara de corazón
+    const cStart = leafStart + 160;
+    for (let i=0;i<CONFIG.canopyHearts;i++){
+      // rejection sampling
+      let u=0, v=0, tries=0;
+      do{
+        u = (rand()*2.4 - 1.2);
+        v = (rand()*2.4 - 1.2);
+        tries++;
+      }while(!heartMask(u, -v) && tries < 40); // invertimos v para orientar “bien”
+
+      const x = cx + u * R * CONFIG.canopySpread;
+      const y = cy + v * R * CONFIG.canopySpread;
+
+      canopy.push({
+        x, y,
+        appear: cStart + rand()*2200, // salen en los primeros 2.2s
+        base: 7.5 + rand()*7.5,      // tamaño base (MUCHO más visible)
+        rot: (rand()*Math.PI*2),
+        hue: Math.floor((rand()*28)-14),
+        alpha: 0.75 + rand()*0.25
+      });
     }
   }
-  buildTree();
 
-  function drawHeart(x,y, s, alpha){
+  buildAll();
+
+  // corazón dibujado en canvas (MUY visible)
+  function drawHeart(x, y, px, alpha, rot, hueShift){
     ctx.save();
     ctx.globalAlpha = alpha;
-    ctx.translate(x,y);
-    ctx.scale(s,s);
+    ctx.translate(x, y);
+    ctx.rotate(rot);
+    ctx.scale(px, px);
+
     const g = ctx.createLinearGradient(-1.2,-1.2, 1.2, 1.2);
-    g.addColorStop(0, "hsl(345, 90%, 60%)");
-    g.addColorStop(1, "hsl(350, 95%, 70%)");
+    g.addColorStop(0, `hsl(${345+hueShift}, 92%, 56%)`);
+    g.addColorStop(1, `hsl(${355+hueShift}, 95%, 70%)`);
     ctx.fillStyle = g;
+
     ctx.beginPath();
     ctx.moveTo(0, -0.35);
     ctx.bezierCurveTo(0.7, -1.15, 1.6, -0.25, 0, 1.0);
     ctx.bezierCurveTo(-1.6, -0.25, -0.7, -1.15, 0, -0.35);
     ctx.closePath();
     ctx.fill();
+
     ctx.restore();
   }
 
   const t0 = performance.now();
+
   function frame(now){
     const t = now - t0;
+
     const W = canvas.getBoundingClientRect().width;
     const H = canvas.getBoundingClientRect().height;
+
     ctx.clearRect(0,0,W,H);
 
     // sombra base
@@ -192,44 +384,58 @@ contigo más te amo.</div>
     ctx.globalAlpha = 0.06;
     ctx.fillStyle = "#000";
     ctx.beginPath();
-    ctx.ellipse(W*0.62, H*0.965, W*0.22, H*0.03, 0, 0, Math.PI*2);
+    ctx.ellipse(W*0.60, H*0.965, W*0.22, H*0.03, 0, 0, Math.PI*2);
     ctx.fill();
     ctx.restore();
 
-    // ramas
+    // ramas: cuando ya hay corazones, bajamos opacidad para que “dominen” las hojas
+    const branchAlpha = (t < CONFIG.growMs) ? 0.95 : 0.28;
+
     for (const seg of segments){
       const local = clamp((t - seg.rs) / (seg.re - seg.rs), 0, 1);
       if (local <= 0) continue;
+
       const p = easeOutCubic(local);
       const x = seg.x1 + (seg.x2 - seg.x1) * p;
       const y = seg.y1 + (seg.y2 - seg.y1) * p;
+
       ctx.lineCap = "round";
-      ctx.strokeStyle = "rgba(94,59,40,0.95)";
-      ctx.lineWidth = Math.max(1.2, seg.thickness);
+      ctx.strokeStyle = `rgba(94,59,40,${branchAlpha})`;
+      ctx.lineWidth = Math.max(1.1, seg.thickness) * (t < CONFIG.growMs ? 1.0 : 0.86);
       ctx.beginPath();
       ctx.moveTo(seg.x1, seg.y1);
       ctx.lineTo(x, y);
       ctx.stroke();
     }
 
-    // hojas (corazones)
-    for (let i=0;i<leaves.length;i++){
-      const leaf = leaves[i];
+    // COPA: muchos corazones grandes (lo principal)
+    for (const c of canopy){
+      const lt = clamp((t - c.appear) / CONFIG.leafAppearMs, 0, 1);
+      if (lt <= 0) continue;
+
+      const pop = easeOutBack(lt);
+      const px = (c.base * (0.25 + 0.75*pop)) / 20; // convertir a escala interna
+      const a = c.alpha * clamp(lt*1.2, 0, 1);
+
+      // px aquí es escala (no “px reales”), por eso multiplicamos un poco
+      drawHeart(c.x, c.y, (c.base/18) * (0.55 + 0.45*pop), a, c.rot, c.hue);
+    }
+
+    // puntas (unos cuantos corazones extra en las ramas)
+    for (const leaf of tipLeaves){
       const lt = clamp((t - leaf.appear) / CONFIG.leafAppearMs, 0, 1);
       if (lt <= 0) continue;
-      const scale = 6.5 + (easeOutBack(lt) * 7.5);
-      const a = clamp(lt*1.2, 0, 1);
-      drawHeart(leaf.x, leaf.y, scale/20, a);
 
-      // extra “follaje”
-      if (i % 2 === 0 && lt > 0.6){
-        const ox = (rand()*22 - 11), oy = (rand()*18 - 9);
-        drawHeart(leaf.x + ox, leaf.y + oy, (scale*0.8)/22, a*0.65);
-      }
+      const pop = easeOutBack(lt);
+      const a = 0.65 * clamp(lt*1.25, 0, 1);
+      const s = (leaf.size/16) * (0.6 + 0.4*pop);
+
+      drawHeart(leaf.x, leaf.y, s, a, leaf.rot, leaf.hue);
     }
 
     requestAnimationFrame(frame);
   }
+
   requestAnimationFrame(frame);
 </script>
 </body>
