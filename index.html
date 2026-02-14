@@ -30,7 +30,6 @@
     .timerLabel{ font-size:18px; color:var(--muted); margin:0 0 6px; }
     .timer{ font-size:34px; font-weight:800; letter-spacing:.3px; }
     .timer small{ font-size:16px; font-weight:650; color:var(--muted); margin-right:6px; }
-
     .right{ background:var(--bg); display:grid; place-items:center; padding:12px; }
     canvas{
       width:100%; max-width:420px; height:100%; max-height:520px; aspect-ratio:4/5;
@@ -90,20 +89,25 @@ const CONFIG = {
   inicio: { y: 2024, m: 8, d: 11, hh: 0, mm: 0, ss: 0 },
 
   // Animación
-  growMs: 2200,          // ramas (rápido)
-  canopyStartMs: 1600,   // empiezan corazones antes de terminar ramas
-  canopyFillMs: 2600,    // tiempo en completar la copa
+  growMs: 2000,          // ramas (rápido)
+  canopyStartMs: 1200,   // corazones empiezan pronto
+  canopyFillMs: 2200,    // se completa la copa
 
-  // Copa de corazones (lo principal)
-  canopyHearts: 750,     // MUCHOS corazones
-  heartSizeMin: 20,      // px (visible)
-  heartSizeMax: 36,      // px (visible)
-  branchAlphaBefore: 0.65,
-  branchAlphaAfter: 0.14, // ramas de fondo
+  // Copa (más densa, menos huecos)
+  fillHearts: 1250,      // relleno (muchos)
+  outlineHearts: 260,    // contorno (borde más fino)
+  heartSizeMin: 16,      // px
+  heartSizeMax: 34,      // px
+  outlineSizeMin: 14,    // px
+  outlineSizeMax: 24,    // px
+
+  // Ramas (de fondo)
+  branchAlphaBefore: 0.55,
+  branchAlphaAfter: 0.08,    // MUY tenue
 };
 
 /* =========================
-   Textos (forzados)
+   Textos
    ========================= */
 document.getElementById("title").textContent =
   `Para el amor de mi vida, ${CONFIG.nombrePareja}:`;
@@ -116,7 +120,6 @@ const startDate = new Date(
   CONFIG.inicio.y, CONFIG.inicio.m - 1, CONFIG.inicio.d,
   CONFIG.inicio.hh, CONFIG.inicio.mm, CONFIG.inicio.ss
 );
-
 const elDays = document.getElementById("days");
 const elHours = document.getElementById("hours");
 const elMins = document.getElementById("mins");
@@ -141,7 +144,7 @@ tickTimer();
 setInterval(tickTimer, 1000);
 
 /* =========================
-   Canvas setup
+   Canvas
    ========================= */
 const canvas = document.getElementById("c");
 const ctx = canvas.getContext("2d");
@@ -152,7 +155,7 @@ function resize(){
   const cssH = canvas.getBoundingClientRect().height;
   canvas.width  = Math.floor(cssW * dpr);
   canvas.height = Math.floor(cssH * dpr);
-  ctx.setTransform(dpr,0,0,dpr,0,0); // dibujar en "px CSS"
+  ctx.setTransform(dpr,0,0,dpr,0,0); // dibujar en px CSS
 }
 resize();
 
@@ -184,22 +187,51 @@ function mulberry32(a){
 const rand = mulberry32(xfnv1a(`${CONFIG.nombrePareja}|${CONFIG.inicio.y}-${CONFIG.inicio.m}-${CONFIG.inicio.d}`));
 
 /* =========================
-   Árbol (ramas suaves)
+   Máscara corazón (para:
+   1) poner corazones
+   2) RECORTAR ramas de afuera)
+   ========================= */
+function heartMask(u, v){
+  // (x^2 + y^2 - 1)^3 - x^2 y^3 <= 0
+  const x=u, y=v;
+  const a = (x*x + y*y - 1);
+  return (a*a*a - x*x*y*y*y) <= 0;
+}
+
+/* =========================
+   Geometría global (se calcula en buildAll)
+   ========================= */
+let CAN = { cx:0, cy:0, R:1 }; // centro y radio de copa
+
+function insideCanopy(x, y, inflate=1.10){
+  // Convertimos a coords normalizadas del corazón
+  const u = (x - CAN.cx) / (CAN.R * inflate);
+  const v = (y - CAN.cy) / (CAN.R * inflate);
+  return heartMask(u, -v); // invertimos v para orientar bien
+}
+
+/* =========================
+   Árbol (ramas) - pero luego recortamos
    ========================= */
 const segments = [];
+
 function addBranch(x1,y1, angle, length, thickness, depth, maxDepth){
   const x2 = x1 + Math.cos(angle) * length;
   const y2 = y1 + Math.sin(angle) * length;
+
   segments.push({x1,y1,x2,y2, thickness, rs:0, re:0});
 
   if (depth >= maxDepth || length < 18) return;
 
-  const branches = (rand() < 0.28) ? 3 : 2;
+  const branches = (rand() < 0.25) ? 3 : 2;
   for (let i=0;i<branches;i++){
     const spread = (branches===3) ? (i-1) : (i===0 ? -1 : 1);
-    const a2 = angle + spread*(0.55 + rand()*0.20) + (rand()*0.30 - 0.15);
+
+    // Menos apertura para que no se vayan hacia los lados
+    const a2 = angle + spread*(0.45 + rand()*0.18) + (rand()*0.22 - 0.11);
     const l2 = length * (0.72 + rand()*0.10);
     const th2 = thickness * (0.72 + rand()*0.10);
+
     addBranch(x2, y2, a2, l2, th2, depth+1, maxDepth);
   }
 }
@@ -208,49 +240,77 @@ function buildBranches(){
   segments.length = 0;
   const W = canvas.getBoundingClientRect().width;
   const H = canvas.getBoundingClientRect().height;
+
   const rootX = W * 0.52;
   const rootY = H * 0.92;
 
-  // tronco + ramas
-  addBranch(rootX, rootY, -Math.PI/2, H*0.22, 14, 0, 6);
+  // tronco + ramaje
+  addBranch(rootX, rootY, -Math.PI/2, H*0.23, 14, 0, 6);
 
   // tiempos de crecimiento
   const total = segments.length;
   for (let i=0;i<total;i++){
     const start = (i / total) * CONFIG.growMs;
     segments[i].rs = start;
-    segments[i].re = start + (380 + rand()*240);
+    segments[i].re = start + (340 + rand()*220);
   }
 }
 
 /* =========================
-   Copa de corazones (forma corazón)
+   Corazones (relleno + contorno)
    ========================= */
-const canopy = [];
+const canopy = []; // {x,y,size,rot,hue,alpha,appear}
 
-function heartMask(u, v){
-  // (x^2 + y^2 - 1)^3 - x^2 y^3 <= 0
-  const x = u, y = v;
-  const a = (x*x + y*y - 1);
-  return (a*a*a - x*x*y*y*y) <= 0;
+function heartCurve(t){
+  // Curva clásica de corazón (x,y)
+  // x = 16 sin^3 t
+  // y = 13 cos t - 5 cos 2t - 2 cos 3t - cos 4t
+  const s = Math.sin(t);
+  const c = Math.cos(t);
+  const x = 16 * s*s*s;
+  const y = 13*c - 5*Math.cos(2*t) - 2*Math.cos(3*t) - Math.cos(4*t);
+  return {x, y};
 }
 
 function buildCanopy(){
   canopy.length = 0;
-
   const W = canvas.getBoundingClientRect().width;
   const H = canvas.getBoundingClientRect().height;
 
-  // Centro de la copa (arriba del tronco)
-  const cx = W * 0.52;
-  const cy = H * 0.36;
-
-  // Radio relativo
-  const R = Math.min(W, H) * 0.36;
+  // Centro de copa (ajustado para quedar bonito)
+  CAN.cx = W * 0.52;
+  CAN.cy = H * 0.36;
+  CAN.R  = Math.min(W, H) * 0.34;
 
   const start = CONFIG.canopyStartMs;
-  for (let i=0;i<CONFIG.canopyHearts;i++){
-    // rejection sampling dentro de un corazón
+
+  // 1) CONTORNO: para borde fino y definido
+  // Normalizamos la curva (porque sus valores son grandes)
+  // En práctica: dividimos por ~18 para quedar en [-1.2,1.2] aprox
+  for (let i=0;i<CONFIG.outlineHearts;i++){
+    const t = (i / CONFIG.outlineHearts) * Math.PI * 2;
+    const p = heartCurve(t);
+
+    // Normalización + ligero jitter para que se vea orgánico
+    const u = (p.x / 18) + (rand()*0.06 - 0.03);
+    const v = (p.y / 18) + (rand()*0.06 - 0.03);
+
+    const x = CAN.cx + u * CAN.R;
+    const y = CAN.cy - v * CAN.R; // invertimos para orientación
+
+    const size = CONFIG.outlineSizeMin + rand()*(CONFIG.outlineSizeMax - CONFIG.outlineSizeMin);
+    canopy.push({
+      x, y,
+      size,
+      rot: (rand()*0.9 - 0.45),
+      hue: Math.floor(rand()*18) - 9,
+      alpha: 0.92,
+      appear: start + rand()*CONFIG.canopyFillMs
+    });
+  }
+
+  // 2) RELLENO: muchos corazones dentro de la máscara (para quitar huecos)
+  for (let i=0;i<CONFIG.fillHearts;i++){
     let u=0, v=0, tries=0;
     do{
       u = (rand()*2.4 - 1.2);
@@ -258,26 +318,33 @@ function buildCanopy(){
       tries++;
     } while(!heartMask(u, -v) && tries < 60);
 
-    const x = cx + u * R;
-    const y = cy + v * R;
+    // Un pelín más compactos para que se vea lleno
+    const x = CAN.cx + u * CAN.R * 0.98;
+    const y = CAN.cy + v * CAN.R * 0.98;
 
-    const size = CONFIG.heartSizeMin + rand()*(CONFIG.heartSizeMax - CONFIG.heartSizeMin);
-    const rot  = (rand()*Math.PI*2);
-    const hue  = Math.floor(rand()*26) - 13;
-    const alpha = 0.78 + rand()*0.22;
+    // Bias: muchos medianos + algunos pequeños para tapar huecos
+    const r = rand();
+    const base = CONFIG.heartSizeMin + (CONFIG.heartSizeMax - CONFIG.heartSizeMin) * (r*r);
 
     canopy.push({
-      x, y, size, rot, hue, alpha,
+      x, y,
+      size: base,
+      rot: (rand()*1.2 - 0.6),
+      hue: Math.floor(rand()*26) - 13,
+      alpha: 0.78 + rand()*0.22,
       appear: start + rand()*CONFIG.canopyFillMs
     });
   }
+
+  // Para que se rellene mejor: dibujamos primero grandes y al final pequeños
+  canopy.sort((a,b) => b.size - a.size);
 }
 
 /* =========================
-   Dibujo de corazón (tamaño EN PIXELES)
+   Dibujo corazón (tamaño en pixeles)
    ========================= */
 function drawHeartPx(x, y, wPx, alpha, rot, hueShift){
-  // El path tiene ancho ~3.2 unidades, convertimos a pixeles:
+  // Path ~ 3.2 unidades de ancho -> convertimos a escala
   const s = wPx / 3.2;
 
   ctx.save();
@@ -302,7 +369,7 @@ function drawHeartPx(x, y, wPx, alpha, rot, hueShift){
 }
 
 /* =========================
-   Build + Animación
+   Build + animación
    ========================= */
 function buildAll(){
   resize();
@@ -310,7 +377,9 @@ function buildAll(){
   buildCanopy();
 }
 buildAll();
+
 window.addEventListener("resize", buildAll);
+window.addEventListener("orientationchange", () => setTimeout(buildAll, 150));
 
 const t0 = performance.now();
 function loop(now){
@@ -329,7 +398,7 @@ function loop(now){
   ctx.fill();
   ctx.restore();
 
-  // ramas (de frente al inicio, luego se apagan)
+  // RAMAS: recortadas para que NO salgan las laterales (las rojas)
   const branchAlpha = (t < CONFIG.canopyStartMs) ? CONFIG.branchAlphaBefore : CONFIG.branchAlphaAfter;
 
   for (const seg of segments){
@@ -340,22 +409,33 @@ function loop(now){
     const x = seg.x1 + (seg.x2 - seg.x1) * p;
     const y = seg.y1 + (seg.y2 - seg.y1) * p;
 
+    // Decide si se dibuja el segmento:
+    // - Si está abajo (tronco) se dibuja
+    // - Si está arriba, SOLO si cae dentro de la copa de corazón
+    const midX = (seg.x1 + x) * 0.5;
+    const midY = (seg.y1 + y) * 0.5;
+
+    const isTrunkZone = (midY > CAN.cy + CAN.R * 0.35);
+    const okInside = insideCanopy(midX, midY, 1.18);
+
+    if (!isTrunkZone && !okInside) continue; // <-- AQUÍ “BORRAMOS” ramas laterales
+
     ctx.lineCap = "round";
     ctx.strokeStyle = `rgba(94,59,40,${branchAlpha})`;
-    ctx.lineWidth = Math.max(1.2, seg.thickness) * (t < CONFIG.canopyStartMs ? 1.0 : 0.75);
+    ctx.lineWidth = Math.max(1.2, seg.thickness) * (t < CONFIG.canopyStartMs ? 1.0 : 0.72);
     ctx.beginPath();
     ctx.moveTo(seg.x1, seg.y1);
     ctx.lineTo(x, y);
     ctx.stroke();
   }
 
-  // COPA: corazones grandes y densos (lo que dominas)
+  // CORAZONES: copa densa + borde fino (menos huecos)
   for (const c of canopy){
-    const lt = clamp((t - c.appear) / 900, 0, 1);
+    const lt = clamp((t - c.appear) / 850, 0, 1);
     if (lt <= 0) continue;
 
     const pop = easeOutBack(lt);
-    const a = c.alpha * clamp(lt*1.2, 0, 1);
+    const a = c.alpha * clamp(lt*1.25, 0, 1);
     const size = c.size * (0.35 + 0.65*pop);
 
     drawHeartPx(c.x, c.y, size, a, c.rot, c.hue);
