@@ -30,7 +30,6 @@
     .timerLabel{ font-size:18px; color:var(--muted); margin:0 0 6px; }
     .timer{ font-size:34px; font-weight:800; letter-spacing:.3px; }
     .timer small{ font-size:16px; font-weight:650; color:var(--muted); margin-right:6px; }
-
     .right{ background:var(--bg); display:grid; place-items:center; padding:12px; }
     canvas{
       width:100%; max-width:420px; height:100%; max-height:520px; aspect-ratio:4/5;
@@ -90,20 +89,24 @@ const CONFIG = {
   inicio: { y: 2024, m: 8, d: 11, hh: 0, mm: 0, ss: 0 },
 
   // Animaciones
-  trunkGrowMs: 900,       // aparece el tronco
-  canopyStartMs: 450,     // empiezan a salir corazones
-  canopyFillMs: 2000,     // se completa la copa
+  trunkGrowMs: 950,
+  canopyStartMs: 420,
+  canopyFillMs: 2200,
 
-  // Copa (más relleno = menos huecos)
-  fillHearts: 1700,
-  outlineHearts: 380,
-  heartSizeMin: 14,       // corazones pequeños tapan huecos
+  // Copa (más relleno y micro-corazones para tapar huecos)
+  fillHearts: 2600,
+  microHearts: 900,
+  outlineHearts: 420,
+
+  heartSizeMin: 10,
   heartSizeMax: 34,
-  outlineSizeMin: 14,
+  microMin: 6,
+  microMax: 12,
+  outlineSizeMin: 12,
   outlineSizeMax: 22,
 
   // Hojas cayendo
-  fallingCount: 55,
+  fallingCount: 65,
   fallingMin: 10,
   fallingMax: 18,
 };
@@ -122,7 +125,6 @@ const startDate = new Date(
   CONFIG.inicio.y, CONFIG.inicio.m - 1, CONFIG.inicio.d,
   CONFIG.inicio.hh, CONFIG.inicio.mm, CONFIG.inicio.ss
 );
-
 const elDays = document.getElementById("days");
 const elHours = document.getElementById("hours");
 const elMins = document.getElementById("mins");
@@ -132,12 +134,10 @@ function tickTimer(){
   const now = new Date();
   const diffMs = Math.max(0, now - startDate);
   const totalSec = Math.floor(diffMs / 1000);
-
   const days = Math.floor(totalSec / 86400);
   const hours = Math.floor((totalSec % 86400) / 3600);
   const mins  = Math.floor((totalSec % 3600) / 60);
   const secs  = totalSec % 60;
-
   elDays.textContent = String(days);
   elHours.textContent = String(hours).padStart(2,"0");
   elMins.textContent  = String(mins).padStart(2,"0");
@@ -147,7 +147,7 @@ tickTimer();
 setInterval(tickTimer, 1000);
 
 /* =========================
-   Canvas setup
+   Canvas
    ========================= */
 const canvas = document.getElementById("c");
 const ctx = canvas.getContext("2d");
@@ -158,7 +158,7 @@ function resize(){
   const cssH = canvas.getBoundingClientRect().height;
   canvas.width  = Math.floor(cssW * dpr);
   canvas.height = Math.floor(cssH * dpr);
-  ctx.setTransform(dpr,0,0,dpr,0,0); // dibujar en px CSS
+  ctx.setTransform(dpr,0,0,dpr,0,0);
 }
 resize();
 
@@ -193,45 +193,47 @@ const rand = mulberry32(xfnv1a(`${CONFIG.nombrePareja}|${CONFIG.inicio.y}-${CONF
    Máscara corazón
    ========================= */
 function heartMask(u, v){
-  // (x^2 + y^2 - 1)^3 - x^2 y^3 <= 0
   const x=u, y=v;
   const a = (x*x + y*y - 1);
   return (a*a*a - x*x*y*y*y) <= 0;
 }
 
 /* =========================
-   Copa (corazón) + tonos
+   Copa + mezcla de tonos
    ========================= */
 let CAN = { cx:0, cy:0, R:1 };
-const canopy = []; // {x,y,size,rot,alpha,appear, tone}
+const canopy = []; // {x,y,size,rot,alpha,appear,tone}
 
 function heartCurve(t){
-  // Curva clásica
   const s = Math.sin(t), c = Math.cos(t);
   const x = 16*s*s*s;
   const y = 13*c - 5*Math.cos(2*t) - 2*Math.cos(3*t) - Math.cos(4*t);
   return {x, y};
 }
 
-// tonos: rojo / rosa / blanco, "acomodados"
-function pickTone(u, v){
-  // u,v en [-1.2,1.2]
-  // Zonas (para que se vean acomodados, no random total)
-  // - Lado izquierdo y parte baja: más rojo
-  // - Lado derecho: más rosa
-  // - Centro/alto: toques blancos
-  let tone;
-  if (u < -0.20 || v > 0.35) tone = 0;         // rojo
-  else if (u > 0.20) tone = 1;                 // rosa
-  else tone = 2;                                // blanco
+// Mezcla suave (nada de “mitades”): tonos se reparten con pesos por posición + random.
+function pickToneMixed(u, v){
+  // u,v aprox [-1.2,1.2] dentro del corazón
+  // Pesos base
+  let wR = 0.46, wP = 0.44, wW = 0.10;
 
-  // un poco de "mezcla" para que se vea natural
+  // Pequeños sesgos (muy suaves)
+  wR += (-u) * 0.10 + (v) * 0.06;          // un poquito más rojo a la izquierda/abajo
+  wP += ( u) * 0.10 + (v) * 0.04;          // un poquito más rosa a la derecha/abajo
+  wW += (1 - Math.abs(u)) * 0.10 + (-v)*0.04; // blanco más hacia el centro y un poco arriba
+
+  // Normalizar
+  wR = Math.max(0.05, wR);
+  wP = Math.max(0.05, wP);
+  wW = Math.max(0.04, wW);
+
+  const sum = wR + wP + wW;
+  wR/=sum; wP/=sum; wW/=sum;
+
   const r = rand();
-  if (tone === 0 && r < 0.10) tone = 1;
-  else if (tone === 1 && r < 0.10) tone = 0;
-  else if (tone !== 2 && r < 0.07) tone = 2;
-
-  return tone; // 0 rojo, 1 rosa, 2 blanco
+  if (r < wR) return 0;           // rojo
+  if (r < wR + wP) return 1;      // rosa
+  return 2;                        // blanco/crema
 }
 
 function buildCanopy(){
@@ -246,7 +248,7 @@ function buildCanopy(){
 
   const start = CONFIG.canopyStartMs;
 
-  // Contorno (borde más fino)
+  // Contorno (borde fino)
   for (let i=0;i<CONFIG.outlineHearts;i++){
     const t = (i / CONFIG.outlineHearts) * Math.PI * 2;
     const p = heartCurve(t);
@@ -257,75 +259,99 @@ function buildCanopy(){
     const x = CAN.cx + u * CAN.R;
     const y = CAN.cy - v * CAN.R;
 
-    const tone = pickTone(u, -v);
-
     canopy.push({
       x, y,
       size: CONFIG.outlineSizeMin + rand()*(CONFIG.outlineSizeMax - CONFIG.outlineSizeMin),
       rot: (rand()*0.9 - 0.45),
-      alpha: 0.95,
-      appear: start + rand()*CONFIG.canopyFillMs,
-      tone
+      tone: pickToneMixed(u, -v),
+      alpha: 0.92,
+      appear: start + rand()*CONFIG.canopyFillMs
     });
   }
 
-  // Relleno (muchos)
+  // Relleno principal (muchos)
   for (let i=0;i<CONFIG.fillHearts;i++){
     let u=0, v=0, tries=0;
     do{
       u = (rand()*2.4 - 1.2);
       v = (rand()*2.4 - 1.2);
       tries++;
-    } while(!heartMask(u, -v) && tries < 80);
+    } while(!heartMask(u, -v) && tries < 120);
 
     const x = CAN.cx + u * CAN.R * 0.99;
     const y = CAN.cy + v * CAN.R * 0.99;
 
-    const r = rand();
-    const size = CONFIG.heartSizeMin + (CONFIG.heartSizeMax - CONFIG.heartSizeMin) * (r*r);
+    const rr = rand();
+    const size = CONFIG.heartSizeMin + (CONFIG.heartSizeMax - CONFIG.heartSizeMin) * (rr*rr);
 
-    const tone = pickTone(u, v);
+    const tone = pickToneMixed(u, v);
+
+    // Si es blanco, lo hacemos más "crema" y menos intenso para que NO se lea como hueco
+    const alpha = (tone === 2) ? (0.62 + rand()*0.18) : (0.76 + rand()*0.22);
 
     canopy.push({
       x, y,
       size,
       rot: (rand()*1.2 - 0.6),
-      alpha: 0.78 + rand()*0.22,
-      appear: start + rand()*CONFIG.canopyFillMs,
-      tone
+      tone,
+      alpha,
+      appear: start + rand()*CONFIG.canopyFillMs
     });
   }
 
-  // Grandes primero, pequeños al final (mejor “relleno”)
+  // Micro-corazones (tapan huecos sí o sí)
+  for (let i=0;i<CONFIG.microHearts;i++){
+    let u=0, v=0, tries=0;
+    do{
+      u = (rand()*2.4 - 1.2);
+      v = (rand()*2.4 - 1.2);
+      tries++;
+    } while(!heartMask(u, -v) && tries < 120);
+
+    const x = CAN.cx + u * CAN.R * 1.00;
+    const y = CAN.cy + v * CAN.R * 1.00;
+
+    // Micro casi siempre rojo/rosa, muy poco blanco (para que el blanco no parezca hueco)
+    let tone = pickToneMixed(u, v);
+    if (tone === 2 && rand() < 0.78) tone = (rand() < 0.5 ? 0 : 1);
+
+    canopy.push({
+      x, y,
+      size: CONFIG.microMin + rand()*(CONFIG.microMax - CONFIG.microMin),
+      rot: (rand()*1.6 - 0.8),
+      tone,
+      alpha: 0.55 + rand()*0.30,
+      appear: start + rand()*CONFIG.canopyFillMs
+    });
+  }
+
+  // Grandes primero, pequeños al final (rellena mejor visualmente)
   canopy.sort((a,b) => b.size - a.size);
 }
 
 /* =========================
-   Dibujo de corazón con 3 tonos
+   Estilos de color (3 tonos mezclados)
    ========================= */
-function heartFillStyle(tone, x, y, size){
-  // 0 rojo, 1 rosa, 2 blanco
-  // Usamos un degradado suave para estilo “acuarela”
-  const g = ctx.createLinearGradient(x - size, y - size, x + size, y + size);
+function heartFillStyle(tone, size){
+  const g = ctx.createLinearGradient(-size, -size, size, size);
 
   if (tone === 0){
     // rojo
-    g.addColorStop(0, "rgba(216, 25, 45, 0.95)");
-    g.addColorStop(1, "rgba(255, 120, 120, 0.92)");
+    g.addColorStop(0, "rgba(210, 18, 40, 0.96)");
+    g.addColorStop(1, "rgba(255, 130, 130, 0.92)");
   } else if (tone === 1){
     // rosa
-    g.addColorStop(0, "rgba(255, 74, 150, 0.92)");
-    g.addColorStop(1, "rgba(255, 170, 210, 0.92)");
+    g.addColorStop(0, "rgba(255, 70, 150, 0.92)");
+    g.addColorStop(1, "rgba(255, 175, 215, 0.92)");
   } else {
-    // blanco/crema
-    g.addColorStop(0, "rgba(255, 255, 255, 0.96)");
-    g.addColorStop(1, "rgba(255, 232, 240, 0.94)");
+    // blanco crema (NO puro, para que no parezca hueco)
+    g.addColorStop(0, "rgba(255, 248, 252, 0.95)");
+    g.addColorStop(1, "rgba(255, 230, 242, 0.92)");
   }
   return g;
 }
 
 function drawHeartPx(x, y, wPx, alpha, rot, tone){
-  // Path ~ 3.2 unidades
   const s = wPx / 3.2;
 
   ctx.save();
@@ -334,7 +360,7 @@ function drawHeartPx(x, y, wPx, alpha, rot, tone){
   ctx.rotate(rot);
   ctx.scale(s, s);
 
-  ctx.fillStyle = heartFillStyle(tone, 0, 0, 2.0);
+  ctx.fillStyle = heartFillStyle(tone, 2.2);
 
   ctx.beginPath();
   ctx.moveTo(0, -0.35);
@@ -343,11 +369,32 @@ function drawHeartPx(x, y, wPx, alpha, rot, tone){
   ctx.closePath();
   ctx.fill();
 
+  // contorno ultra sutil para que el “blanco” no se pierda con el fondo
+  ctx.globalAlpha = alpha * 0.18;
+  ctx.lineWidth = 0.10;
+  ctx.strokeStyle = "rgba(180, 60, 110, 1)";
+  ctx.stroke();
+
   ctx.restore();
 }
 
 /* =========================
-   Tronco (solo base)
+   Silueta suave detrás (evita “huecos” visuales)
+   ========================= */
+function drawSoftSilhouette(){
+  // Una capa MUY ligera, del tamaño de la copa,
+  // para que aunque haya espacios, nunca se sienta vacío.
+  const size = CAN.R * 1.55; // pix aprox
+  const x = CAN.cx;
+  const y = CAN.cy + CAN.R*0.06;
+  ctx.save();
+  ctx.globalAlpha = 0.10;
+  drawHeartPx(x, y, size, 0.10, 0, 1); // tono rosa muy suave
+  ctx.restore();
+}
+
+/* =========================
+   Tronco (más largo)
    ========================= */
 function drawTrunkBase(t){
   const W = canvas.getBoundingClientRect().width;
@@ -358,10 +405,11 @@ function drawTrunkBase(t){
 
   const baseX = W * 0.52;
   const baseY = H * 0.93;
-  const topY  = H * 0.73; // “solo un tramo” como base
+
+  // MÁS LARGO (antes estaba muy corto)
+  const topY  = H * 0.60;
   const y = baseY - (baseY - topY) * e;
 
-  // sombra al piso
   ctx.save();
   ctx.globalAlpha = 0.06;
   ctx.fillStyle = "#000";
@@ -370,13 +418,12 @@ function drawTrunkBase(t){
   ctx.fill();
   ctx.restore();
 
-  // tronco (trapezoide) con leve degradado
-  const trunkWBottom = W * 0.07;
-  const trunkWTop    = W * 0.045;
+  const trunkWBottom = W * 0.072;
+  const trunkWTop    = W * 0.044;
 
   const grad = ctx.createLinearGradient(baseX - trunkWBottom, y, baseX + trunkWBottom, baseY);
   grad.addColorStop(0, "rgba(92,59,40,0.92)");
-  grad.addColorStop(1, "rgba(140,92,62,0.88)");
+  grad.addColorStop(1, "rgba(145,98,68,0.90)");
   ctx.fillStyle = grad;
 
   ctx.beginPath();
@@ -391,37 +438,37 @@ function drawTrunkBase(t){
 /* =========================
    Hojas cayendo (corazones)
    ========================= */
-const falling = []; // partículas
+const falling = [];
 
 function spawnFalling(p){
   const W = canvas.getBoundingClientRect().width;
   const H = canvas.getBoundingClientRect().height;
 
-  // spawn dentro de la copa
   let u=0, v=0, tries=0;
   do{
     u = (rand()*2.4 - 1.2);
     v = (rand()*2.4 - 1.2);
     tries++;
-  } while(!heartMask(u, -v) && tries < 80);
+  } while(!heartMask(u, -v) && tries < 120);
 
-  const x0 = CAN.cx + u * CAN.R * 0.95;
-  const y0 = CAN.cy + v * CAN.R * 0.95;
+  p.x0 = CAN.cx + u * CAN.R * 0.95;
+  p.y  = CAN.cy + v * CAN.R * 0.95 + (rand()*18 - 9);
 
-  p.x0 = x0;
-  p.y = y0 + (rand()*20 - 10);
-  p.vy = 35 + rand()*65;          // px/s
-  p.amp = 10 + rand()*18;         // balanceo
-  p.freq = 1.2 + rand()*1.6;      // Hz
+  p.vy = 35 + rand()*70;
+  p.amp = 10 + rand()*18;
+  p.freq = 1.1 + rand()*1.8;
   p.phase = rand()*Math.PI*2;
   p.rot = rand()*Math.PI*2;
-  p.rotSpd = (rand()*1.6 - 0.8);  // rad/s
+  p.rotSpd = (rand()*1.6 - 0.8);
   p.size = CONFIG.fallingMin + rand()*(CONFIG.fallingMax - CONFIG.fallingMin);
-  p.tone = Math.floor(rand()*3);  // 0/1/2
-  p.alpha = 0.70 + rand()*0.25;
 
-  // para que algunas caigan “desde fuera”
-  if (rand() < 0.25) p.y = CAN.cy - CAN.R * 0.65 + rand()*30;
+  // tonos mezclados también en caída
+  p.tone = pickToneMixed(u, v);
+  if (p.tone === 2 && rand() < 0.55) p.tone = (rand() < 0.5 ? 0 : 1);
+
+  p.alpha = 0.55 + rand()*0.30;
+
+  if (rand() < 0.22) p.y = CAN.cy - CAN.R * 0.65 + rand()*30;
 }
 
 function buildFalling(){
@@ -429,14 +476,13 @@ function buildFalling(){
   for (let i=0;i<CONFIG.fallingCount;i++){
     const p = {};
     spawnFalling(p);
-    // offset inicial para que no caigan todas igual
-    p.y += rand()*220;
+    p.y += rand()*240;
     falling.push(p);
   }
 }
 
 /* =========================
-   Build all
+   Build
    ========================= */
 function buildAll(){
   resize();
@@ -449,7 +495,7 @@ window.addEventListener("resize", buildAll);
 window.addEventListener("orientationchange", () => setTimeout(buildAll, 120));
 
 /* =========================
-   Animación principal
+   Loop
    ========================= */
 let last = performance.now();
 const t0 = performance.now();
@@ -464,41 +510,37 @@ function loop(now){
 
   ctx.clearRect(0,0,W,H);
 
-  // 1) Tronco base
+  // tronco
   drawTrunkBase(t);
 
-  // 2) Copa (corazones)
+  // silueta suave detrás (evita huecos visuales)
+  if (t > 80) drawSoftSilhouette();
+
+  // copa
   for (const c of canopy){
     const lt = clamp((t - c.appear) / 850, 0, 1);
     if (lt <= 0) continue;
 
     const pop = easeOutBack(lt);
     const a = c.alpha * clamp(lt*1.25, 0, 1);
-    const size = c.size * (0.35 + 0.65*pop);
+    const size = c.size * (0.30 + 0.70*pop);
 
     drawHeartPx(c.x, c.y, size, a, c.rot, c.tone);
   }
 
-  // 3) Hojas cayendo (encima)
-  // Empiezan cuando ya hay copa
+  // caída
   if (t > CONFIG.canopyStartMs + 300){
     for (const p of falling){
-      // movimiento
       p.y += p.vy * dt;
-
       const x = p.x0 + Math.sin((now/1000)*Math.PI*2*p.freq + p.phase) * p.amp;
       p.rot += p.rotSpd * dt;
 
-      // fade al final
       let a = p.alpha;
       if (p.y > H*0.82) a *= clamp(1 - (p.y - H*0.82)/(H*0.25), 0, 1);
 
       drawHeartPx(x, p.y, p.size, a, p.rot, p.tone);
 
-      // respawn abajo
-      if (p.y > H + 30){
-        spawnFalling(p);
-      }
+      if (p.y > H + 30) spawnFalling(p);
     }
   }
 
